@@ -40,6 +40,12 @@ class ITunes(object):
         self.source.playlists().addObject_(sb_playlist)
         return Playlist(sb_playlist)
 
+    def ensure_playlist(self, name):
+        existing = [p for p in self.playlists(smart=False, basic=True) if p.name == name]
+        if len(existing) > 0:
+            return existing[0]
+        return self.create_playlist(name)
+
 
 class Playlist(object):
     def __init__(self, sb_playlist):
@@ -47,14 +53,23 @@ class Playlist(object):
 
     def add_track(self, track):
         assert isinstance(track, Track)
-        track.duplicateTo_(self.__sb__)
+        track.__sb__.duplicateTo_(self.__sb__)
+
+    @property
+    def track_iter(self):
+        for sb_track in arrayIterator(self.__sb__.tracks()):
+            yield Track(sb_track)
 
     @property
     def tracks(self):
-        return [Track(sb_track) for sb_track in arrayIterator(self.__sb__.tracks())]
+        return list(self.track_iter)
+
+    @property
+    def name(self):
+        return self.__sb__.name()
 
     def __str__(self):
-        return self.__sb__.name()
+        return self.name
 
 
 class Track(object):
@@ -78,8 +93,16 @@ class Track(object):
         return self.__sb__.playedCount()
 
     @property
+    def bitrate(self):
+        return self.__sb__.bitRate()
+
+    @property
     def rating(self):
         return self.__sb__.rating()
+
+    @property
+    def seconds(self):
+        return self.__sb__.duration()
 
     @property
     def comment(self):
@@ -92,15 +115,17 @@ class Track(object):
     def set(self, key, value):
         # assert key in ['plays', 'rating', 'comment']
         if key == 'plays':
-            self.__sb__.setPlayedCount_(int(value))
+            self.__sb__.setPlayedCount_(value)
         elif key == 'rating':
-            self.__sb__.setRating_(int(value))
+            self.__sb__.setRating_(value)
         elif key == 'comment':
-            self.__sb__.setCommend_(comment)
+            self.__sb__.setCommend_(value)
+        elif key == 'enabled':
+            self.__sb__.setEnabled_(value)
         else:
             print 'Cannot set %s.' % key
 
     def __str__(self, sep=' - '):
-        return sep.join(self.artist, self.album, self.name)
+        return sep.join([self.artist, self.album, self.name])
 
 iTunes = ITunes(__app__)
